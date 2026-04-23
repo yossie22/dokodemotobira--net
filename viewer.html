@@ -885,7 +885,7 @@ function isRightSide(id) { return /cc|ee|gg|ii/i.test(id); }
 function isSideRoute(id) { return isLeftSide(id) || isRightSide(id); }
 function degToRad(d) { return d * Math.PI / 180; }
 function radToDeg(r) { return r * 180 / Math.PI; }
-window.goToMap = function() { location.href = 'map.html'; };
+window.goToMap = function() { location.href = 'index.html'; };
 
 // ========================================
 // ★ BGM再生管理
@@ -948,7 +948,7 @@ function playSceneBGM(sceneId, opts) {
   bgmItems.forEach(function(item) {
     var file = item.file;
     if (!file) return;
-    if (!bgmAudios[file] || bgmAudios[file].paused) {
+    if (!bgmAudios[file] || (bgmAudios[file].paused && !bgmAudios[file].ended)) {
       playAudio('sounds/' + file, {
         loop: resolveLoopFlag(file, item)
       });
