@@ -961,11 +961,8 @@ function playSceneBGM(sceneId, opts) {
 }
 
 function resolveLoopFlag(fileName, item) {
-  var lower = String(fileName || '').toLowerCase();
-  // 優先順位: data.js の loop 指定 > ファイル名に loop > bb_loop_course.mp3 の特例
+  // data.js の loop 指定だけを採用（ファイル名からの推測はしない）
   if (item && typeof item.loop === 'boolean') return item.loop;
-  if (lower.indexOf('loop') !== -1) return true;
-  if (lower === 'bb_loop_course.mp3') return true;
   return false;
 }
 
