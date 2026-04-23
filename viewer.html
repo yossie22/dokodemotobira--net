@@ -140,17 +140,16 @@ var urlParams = new URLSearchParams(window.location.search);
 var initialYaw = urlParams.get('yaw');
 // ★ 前後左右反転フラグ（?flip=1 で全矢印方向を逆にする）
 var flipDir = urlParams.get('flip') === '1';
-// ★タイル方式切り替え（?tiles=1024 で 1024pxタイルを使う）
-var tilesMode = urlParams.get('tiles');
-window.TILES_BASE = (tilesMode === '1024') ? 'tiles1024' : 'tiles';
+// ★常に1024タイル方式（512は使わない）
+window.TILES_BASE = 'tiles1024';
 
-// data.js を動的に読み込んでから起動（tilesMode によるデータ変換もここで行う）
+// data.js を動的に読み込んでから起動（levels を 1024タイル前提に変換）
 (function loadDataAndBoot() {
   var s = document.createElement('script');
   s.src = 'data.js?v=2026';
   s.onload = function() {
     // 512タイル前提の data.js を、1024タイル用に最小変換する
-    if (tilesMode === '1024' && window.APP_DATA && Array.isArray(window.APP_DATA.scenes)) {
+    if (window.APP_DATA && Array.isArray(window.APP_DATA.scenes)) {
       window.APP_DATA.scenes.forEach(function(scene) {
         if (!scene || !Array.isArray(scene.levels)) return;
         scene.levels.forEach(function(lv) {
@@ -159,7 +158,7 @@ window.TILES_BASE = (tilesMode === '1024') ? 'tiles1024' : 'tiles';
           if (lv.size >= 1024) lv.tileSize = 1024;
         });
       });
-      console.log('🧩 tiles=1024: APP_DATA levels tileSize adjusted');
+      console.log('🧩 tiles1024: APP_DATA levels tileSize adjusted');
     }
     startViewer();
   };
