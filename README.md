@@ -1,2 +1,0 @@
-# dokodemotobira -net
-

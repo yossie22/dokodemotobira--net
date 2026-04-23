@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<title>VRツアーマップ</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body, html { width: 100%; height: 100%; overflow: hidden; background: #222; }
+.map-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: #222; }
+.map-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.overlay-text { position: absolute; z-index: 5; pointer-events: none; }
+.main-title { font-size: 53px; color: #ff6464; font-weight: bold; font-family: 'Yu Mincho','YuMincho','Hiragino Mincho ProN','MS PMincho',serif; text-shadow: 0 0 10px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.76), 0 0 30px rgba(0,0,0,0.57), 0 0 40px rgba(0,0,0,0.38); margin-bottom: 10px; text-align: left; }
+.desc-text { font-size: 31px; color: #ffff00; font-family: 'Yu Mincho','YuMincho','Hiragino Mincho ProN','MS PMincho',serif; text-shadow: 0 0 10px rgba(0,0,0,1), 0 0 20px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4); white-space: pre-wrap; line-height: 1.6; text-align: left; }
+.map-pin { position: absolute; transform: translate(-50%, -100%); cursor: pointer; z-index: 10; display: flex; flex-direction: column; align-items: center; transition: transform 0.2s; }
+.map-pin:hover, .map-pin:active { transform: translate(-50%, -100%) scale(1.15); }
+.pin-icon { width: 36px; height: 36px; border: 3px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
+.pin-number { transform: rotate(45deg); font-size: 14px; font-weight: bold; color: white; line-height: 1; }
+.pin-label { background: rgba(255,255,255,0.95); color: #333; font-size: 12px; font-weight: bold; padding: 3px 8px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.4); margin-bottom: 4px; pointer-events: none; font-family: sans-serif; }
+
+/* BGM ON/OFF（右下） */
+#bgmToggle {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 20;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  font-family: sans-serif;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+#bgmToggle.off { opacity: 0.6; }
+</style>
+</head>
+<body>
+<div class="map-container">
+  <img src="map.jpg" alt="地図" class="map-image">
+  <div class="overlay-text" style="left: 2%; top: 3%;">
+    <div class="main-title">ドコでも扉2</div>
+    <div class="desc-text">扉を通って神角寺入り口へ移動</div>
+  </div>
+  <div id="bgmToggle">BGM: ON</div>
+</div>
+<script>
+var MAP_BOUNDS = {
+  topLeft: { lat: 33.079181, lng: 131.434773 },
+  bottomRight: { lat: 33.025666, lng: 131.554335 }
+};
+var PINS = [
+
+  // Pin #1: ドコでも扉まで (aa - sceneId: 0-aa001)
+  { lat: 33.034214, lng: 131.536006, name: 'ドコでも扉まで', sceneId: '0-aa001', color: '#e8453c' },
+
+  // Pin #2: 神角寺入り口 (bb - sceneId: 8-bb001)
+  { lat: 33.055276, lng: 131.454801, name: '神角寺入り口', sceneId: '8-bb001', color: '#00ff00' }
+];
+
+function goToScene(pin) {
+  var url = './viewer.html?id=' + pin.sceneId;
+  if (pin.flip) url += '&flip=1';
+  if (pin.greenArrows && pin.greenArrows.length > 0) {
+    var encoded = encodeURIComponent(JSON.stringify(pin.greenArrows));
+    url += '&greenArrows=' + encoded;
+  }
+  url += '&back=./map.html';
+  window.location.href = url;
+}
+
+function gpsToPercent(lat, lng) {
+  var x = (lng - MAP_BOUNDS.topLeft.lng) / (MAP_BOUNDS.bottomRight.lng - MAP_BOUNDS.topLeft.lng) * 100;
+  var y = (MAP_BOUNDS.topLeft.lat - lat) / (MAP_BOUNDS.topLeft.lat - MAP_BOUNDS.bottomRight.lat) * 100;
+  return { x: x, y: y };
+}
+
+var container = document.querySelector('.map-container');
+PINS.forEach(function(pin, i) {
+  var pos = gpsToPercent(pin.lat, pin.lng);
+  var el = document.createElement('div');
+  el.className = 'map-pin';
+  el.style.left = pos.x + '%';
+  el.style.top = pos.y + '%';
+  el.setAttribute('data-idx', i);
+  el.innerHTML = '<div class="pin-label">' + pin.name + '</div><div class="pin-icon" style="background:' + pin.color + ';"><span class="pin-number">' + (i+1) + '</span></div>';
+  el.addEventListener('click', function() { goToScene(PINS[parseInt(this.getAttribute('data-idx'))]); });
+  container.appendChild(el);
+});
+
+// ------------------------
+// BGM ON/OFF（localStorage）
+// ------------------------
+var bgmToggle = document.getElementById('bgmToggle');
+function renderBgmToggle() {
+  var enabled = (localStorage.getItem('bgmEnabled') !== 'false');
+  bgmToggle.textContent = 'BGM: ' + (enabled ? 'ON' : 'OFF');
+  bgmToggle.classList.toggle('off', !enabled);
+}
+bgmToggle.addEventListener('click', function() {
+  var enabled = (localStorage.getItem('bgmEnabled') !== 'false');
+  localStorage.setItem('bgmEnabled', enabled ? 'false' : 'true');
+  renderBgmToggle();
+});
+renderBgmToggle();
+</script>
+</body>
+</html>

@@ -72,12 +72,37 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
   background: rgba(255, 255, 255, 0.8); z-index: 1000; opacity: 0;
   pointer-events: none; transition: opacity 2s ease-out;
 }
+
+/* 扉演出用：部分ぼかし（中心→外側へグラデーション） */
+#blurOverlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1001;
+  opacity: 0;
+  pointer-events: none;
+
+  /* ぼかし強度（JSで更新） */
+  -webkit-backdrop-filter: blur(var(--blurPx, 14px));
+  backdrop-filter: blur(var(--blurPx, 14px));
+
+  /* クリック位置を中心に、内側ほど強く・外側ほど透明（=くっきり） */
+  -webkit-mask-image: radial-gradient(circle at var(--bx, 50%) var(--by, 50%),
+    rgba(0,0,0,1) 0px,
+    rgba(0,0,0,1) var(--innerR, 120px),
+    rgba(0,0,0,0) var(--outerR, 260px)
+  );
+  mask-image: radial-gradient(circle at var(--bx, 50%) var(--by, 50%),
+    rgba(0,0,0,1) 0px,
+    rgba(0,0,0,1) var(--innerR, 120px),
+    rgba(0,0,0,0) var(--outerR, 260px)
+  );
+}
 </style>
 </head>
 
 <body>
 <div id="pano"></div>
 <div id="fadeOverlay"></div>
+<div id="blurOverlay"></div>
 <div id="crosshair"></div>
 
 <div id="compassContainer">
@@ -106,7 +131,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 <img id="arrowUpGreen" class="arrow-nav" src="緑上-removebg-preview.png">
 
 <script src="vendor/marzipano.js"></script>
-<script src="data.js?v=2026"></script>
 <script>
 // ========================================
 // ★ 修正案A：URLパラメータ読み込みをIIFE外に移動
@@ -116,6 +140,31 @@ var urlParams = new URLSearchParams(window.location.search);
 var initialYaw = urlParams.get('yaw');
 // ★ 前後左右反転フラグ（?flip=1 で全矢印方向を逆にする）
 var flipDir = urlParams.get('flip') === '1';
+// ★タイル方式切り替え（?tiles=1024 で 1024pxタイルを使う）
+var tilesMode = urlParams.get('tiles');
+window.TILES_BASE = (tilesMode === '1024') ? 'tiles1024' : 'tiles';
+
+// data.js を動的に読み込んでから起動（tilesMode によるデータ変換もここで行う）
+(function loadDataAndBoot() {
+  var s = document.createElement('script');
+  s.src = 'data.js?v=2026';
+  s.onload = function() {
+    // 512タイル前提の data.js を、1024タイル用に最小変換する
+    if (tilesMode === '1024' && window.APP_DATA && Array.isArray(window.APP_DATA.scenes)) {
+      window.APP_DATA.scenes.forEach(function(scene) {
+        if (!scene || !Array.isArray(scene.levels)) return;
+        scene.levels.forEach(function(lv) {
+          if (!lv || typeof lv.size !== 'number') return;
+          // size が 1024 以上のレベルだけ tileSize を 1024 にする（512レベルは現状維持）
+          if (lv.size >= 1024) lv.tileSize = 1024;
+        });
+      });
+      console.log('🧩 tiles=1024: APP_DATA levels tileSize adjusted');
+    }
+    startViewer();
+  };
+  document.head.appendChild(s);
+})();
 
 // 緑矢印設定をグローバルスコープで先に定義
 window.greenArrowConfig = {
@@ -128,11 +177,13 @@ window.departureYaw = null;                   // 出発時の aa での yaw
 window.bbInitialYaw = null;                   // 進入先の初期 yaw（bb/cc の正面）
 
 // ★ BGM再生管理
-var bgmAudios = {};  // 複数BGMを管理：{ fileKey: Audio要素 }
-var bgmVolume = 0.5;  // BGM音量（0～1）
-// ★BGM有効フラグ（localStorage から読み込む、デフォルト：true）
+var bgmAudios = {};              // { fileName: HTMLAudioElement }
+var bgmVolume = parseFloat(localStorage.getItem('bgmVolume') || '0.5'); // 0..1
+// ★地図側のON/OFF（デフォルト：true）
 var bgmEnabled = (localStorage.getItem('bgmEnabled') !== 'false');  // 'false' 以外は true
-var bgmFadeOutDuration = 1000;  // フェードアウト時間（1秒）
+// ★長押しで「地図OFFでも鳴らす」強制再生フラグ
+var bgmForce = false;
+var bgmFadeOutDuration = 1000;   // フェードアウト時間（ms）
 
 // URLパラメータから緑矢印データを読み込み（IIFE外で実行）
 var greenArrowsParam = urlParams.get('greenArrows');
@@ -158,7 +209,7 @@ if (greenArrowsParam) {
   console.warn('⚠️ greenArrowsParam is null or undefined from URL');
 }
 
-(function() {
+function startViewer() {
 'use strict';
 var Marzipano = window.Marzipano;
 var data = window.APP_DATA;
@@ -181,6 +232,143 @@ panoElement.addEventListener('touchstart', function(e) {
   }
 });
 
+function isInDoorAreaForAaToBbFromEvent(e) {
+  if (!currentSceneObj || !currentView) return false;
+  if (currentSceneObj.data.id !== "7-aa008") return false;
+  if (!e) return false;
+
+  var rect = panoElement.getBoundingClientRect();
+  var clientX = (typeof e.clientX === 'number') ? e.clientX : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : null);
+  var clientY = (typeof e.clientY === 'number') ? e.clientY : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientY : null);
+  if (clientX === null || clientY === null) return false;
+
+  var screenCoords = {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  };
+
+  var viewCoords;
+  try {
+    viewCoords = currentView.screenToCoordinates(screenCoords);
+  } catch (err) {
+    return false;
+  }
+  if (!viewCoords) return false;
+
+  var yawDeg = radToDeg(normalizeAngle(viewCoords.yaw));
+  var pitchDeg = radToDeg(viewCoords.pitch);
+
+  // 指定範囲（degree）
+  var yawMin = -40, yawMax = -6;
+  var pitchMin = -30, pitchMax = 37;
+
+  return (yawDeg >= yawMin && yawDeg <= yawMax && pitchDeg >= pitchMin && pitchDeg <= pitchMax);
+}
+
+function blurToScene(sceneId, yaw, pitch, fov, opts) {
+  // 白画面ではなく、表示そのものを「ぼかし」で演出する（扉付近だけグラデーション可能）
+  var outMs = (opts && typeof opts.outMs === 'number') ? opts.outMs : 2000;
+  var inMs = (opts && typeof opts.inMs === 'number') ? opts.inMs : 2000;
+  var holdMs = (opts && typeof opts.holdMs === 'number') ? opts.holdMs : 0;
+  var blurPx = (opts && typeof opts.blurPx === 'number') ? opts.blurPx : 14;
+  var bx = (opts && typeof opts.bx === 'number') ? opts.bx : null;
+  var by = (opts && typeof opts.by === 'number') ? opts.by : null;
+  var innerR = (opts && typeof opts.innerR === 'number') ? opts.innerR : 120;
+  var outerR = (opts && typeof opts.outerR === 'number') ? opts.outerR : 260;
+
+  // 念のため白オーバーレイは使わない（53-cc001等は switchScene 内で別処理）
+  var fadeOverlay = document.getElementById('fadeOverlay');
+  if (fadeOverlay) fadeOverlay.style.opacity = '0';
+
+  var blurOverlay = document.getElementById('blurOverlay');
+  var supportsBackdrop = (typeof CSS !== 'undefined'
+    && CSS.supports
+    && (CSS.supports('backdrop-filter: blur(1px)') || CSS.supports('-webkit-backdrop-filter: blur(1px)')));
+
+  // 部分ぼかし（対応ブラウザ）
+  if (blurOverlay && supportsBackdrop) {
+    if (bx !== null) blurOverlay.style.setProperty('--bx', bx + 'px');
+    if (by !== null) blurOverlay.style.setProperty('--by', by + 'px');
+    blurOverlay.style.setProperty('--blurPx', Math.max(0, blurPx) + 'px');
+    blurOverlay.style.setProperty('--innerR', Math.max(0, innerR) + 'px');
+    blurOverlay.style.setProperty('--outerR', Math.max(0, outerR) + 'px');
+
+    blurOverlay.style.transition = 'opacity ' + Math.max(0, outMs) + 'ms linear';
+    blurOverlay.style.opacity = '1';
+
+    setTimeout(function() {
+      switchScene(sceneId, yaw, pitch, fov);
+      setTimeout(function() {
+        blurOverlay.style.transition = 'opacity ' + Math.max(0, inMs) + 'ms linear';
+        blurOverlay.style.opacity = '0';
+      }, Math.max(0, holdMs));
+    }, Math.max(0, outMs));
+    return;
+  }
+
+  // フォールバック：全体ぼかし（backdrop-filter が効かない環境用）
+  panoElement.style.willChange = 'filter';
+  panoElement.style.transition = 'filter ' + Math.max(0, outMs) + 'ms linear';
+  panoElement.style.filter = 'blur(' + Math.max(0, blurPx) + 'px)';
+
+  setTimeout(function() {
+    switchScene(sceneId, yaw, pitch, fov);
+    setTimeout(function() {
+      panoElement.style.transition = 'filter ' + Math.max(0, inMs) + 'ms linear';
+      panoElement.style.filter = 'blur(0px)';
+      setTimeout(function() {
+        panoElement.style.willChange = '';
+      }, Math.max(0, inMs));
+    }, Math.max(0, holdMs));
+  }, Math.max(0, outMs));
+}
+
+function triggerAaToBbDoorTransition(e) {
+  if (!currentView) return;
+  console.log('🚪 扉クリック → bb001 (ぼかし)');
+
+  var bx = null, by = null;
+  var innerR = 110, outerR = 280;
+  if (e) {
+    var rect = panoElement.getBoundingClientRect();
+    var clientX = (typeof e.clientX === 'number') ? e.clientX : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : null);
+    var clientY = (typeof e.clientY === 'number') ? e.clientY : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientY : null);
+    if (clientX !== null && clientY !== null) {
+      bx = clientX - rect.left;
+      by = clientY - rect.top;
+    }
+
+    // 画面サイズに応じて「扉の外まで」広がるように半径を自動調整
+    var minSide = Math.max(1, Math.min(rect.width, rect.height));
+    // さらに大きく（最低でも前回の約3倍を目安）
+    innerR = Math.max(420, Math.round(minSide * 0.66));
+    outerR = Math.max(1560, Math.round(minSide * 2.25));
+  }
+
+  blurToScene(
+    "8-bb001",
+    currentView.parameters().yaw,
+    currentView.parameters().pitch,
+    currentView.parameters().fov,
+    { outMs: 2000, inMs: 2000, holdMs: 0, blurPx: 14, bx: bx, by: by, innerR: innerR, outerR: outerR }
+  );
+}
+
+// 扉のクリック判定（7-aa008 のみ）
+panoElement.addEventListener('click', function(e) {
+  if (!isInDoorAreaForAaToBbFromEvent(e)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  triggerAaToBbDoorTransition(e);
+}, true);
+
+panoElement.addEventListener('touchend', function(e) {
+  if (!isInDoorAreaForAaToBbFromEvent(e)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  triggerAaToBbDoorTransition(e);
+}, true);
+
 // UI要素の取得（ここで一括定義するように修正）
 var counterEl = document.getElementById('counter');
 var mapBtnEl = document.getElementById('mapButton');
@@ -189,8 +377,9 @@ var compassContEl = document.getElementById('compassContainer');
 var compassNeedleCircle = document.getElementById('compassCircle');
 var volumeUI = document.getElementById('volumeContainer');
 
-var courseBGM = null, sceneBGM = null, audioEnabled = false, bgmPlaying = false;
-var currentCourseBGMFile = null, currentSceneBGMFile = null, currentVolume = 0.5;
+var audioEnabled = false;
+// ★長押しの再生/停止トグル（地図OFFとは別軸）
+var bgmPlaying = true;
 
 document.addEventListener('click', function enableAudioOnClick() {
   audioEnabled = true;
@@ -198,75 +387,15 @@ document.addEventListener('click', function enableAudioOnClick() {
 }, { once: true });
 
 function toggleBGMPlayback() {
-  if (bgmPlaying) { stopAllAudio(); } 
-  else { bgmPlaying = true; if (currentSceneObj) playBGMForCurrentScene(); }
-}
-
-function stopAllAudio() {
-  bgmPlaying = false;
-  if (courseBGM) fadeOutAndStop(courseBGM);
-  if (sceneBGM) fadeOutAndStop(sceneBGM);
-}
-
-function fadeOutAndStop(audioElement) {
-  var fadeInt = setInterval(function() {
-    if (audioElement.volume > 0.05) { audioElement.volume -= 0.05; } 
-    else { audioElement.pause(); audioElement.currentTime = 0; clearInterval(fadeInt); }
-  }, 50);
-}
-
-function playBGMForCurrentScene() {
-  if (!audioEnabled || !bgmPlaying || !currentSceneObj) return;
-  var d = currentSceneObj.data;
-  
-  // コースBGM再生
-  if (d.courseBGM && currentCourseBGMFile !== d.courseBGM) {
-    currentCourseBGMFile = d.courseBGM;
-    if (courseBGM) fadeOutAndStop(courseBGM);
-    courseBGM = new Audio('sounds/' + d.courseBGM);
-    // ★ファイル名に 'loop' を含む場合のみループON（デフォルトはOFF）
-    courseBGM.loop = (d.courseBGM.toLowerCase().indexOf('loop') !== -1);
-    courseBGM.volume = d.courseBGMVolume || 0.5;
-    courseBGM.play();
-  }
-  
-  // シーンBGM再生（data.js に bgm が設定されている場合）
-  if (d.bgm && currentSceneBGMFile !== d.bgm) {
-    currentSceneBGMFile = d.bgm;
-    if (sceneBGM) fadeOutAndStop(sceneBGM);
-    sceneBGM = new Audio('sounds/' + d.bgm);
-    // ★ファイル名に 'loop' を含む場合のみループON（デフォルトはOFF）
-    sceneBGM.loop = (d.bgm.toLowerCase().indexOf('loop') !== -1);
-    sceneBGM.volume = d.bgmVolume || 0.8;
-    sceneBGM.play();
-  }
-  // ★新規：sceneId.mp3 の自動判定（例：22-cc12.mp3）
-  else if (!d.bgm) {
-    var sceneAudioFile = d.id + '.mp3';
-    if (currentSceneBGMFile !== sceneAudioFile) {
-      currentSceneBGMFile = sceneAudioFile;
-      if (sceneBGM) fadeOutAndStop(sceneBGM);
-      
-      sceneBGM = new Audio('sounds/' + sceneAudioFile);
-      // ★ファイル名に 'loop' を含む場合のみループON（デフォルトはOFF）
-      sceneBGM.loop = (sceneAudioFile.toLowerCase().indexOf('loop') !== -1);
-      sceneBGM.volume = 0.8;
-      
-      // ファイル読み込み成功時に再生
-      sceneBGM.oncanplay = function() {
-        if (bgmPlaying) {
-          sceneBGM.play();
-          console.log('🔊 シーン音再生：' + sceneAudioFile);
-        }
-      };
-      
-      // ファイルが存在しない場合はエラーを無視
-      sceneBGM.onerror = function() {
-        console.log('🔇 シーン音なし：' + sceneAudioFile);
-        sceneBGM = null;
-        currentSceneBGMFile = null;
-      };
-    }
+  // 長押しは「地図でOFFでも強制的に鳴らす」ことがある
+  if (bgmPlaying) {
+    bgmPlaying = false;
+    bgmForce = false;
+    stopAllBGM();
+  } else {
+    bgmPlaying = true;
+    if (!bgmEnabled) bgmForce = true;
+    if (currentSceneObj) playSceneBGM(currentSceneObj.data.id, { force: true });
   }
 }
 
@@ -275,7 +404,8 @@ var currentScene = null, currentView = null, currentSceneObj = null;
 var uiTimeout, showExtras = false, showVolume = false, pressTimer;
 
 data.scenes.forEach(function(sd) {
-  var source = Marzipano.ImageUrlSource.fromString("tiles/" + sd.id + "/{z}/{f}/{y}/{x}.jpg");
+  var tilesBase = window.TILES_BASE || 'tiles';
+  var source = Marzipano.ImageUrlSource.fromString(tilesBase + "/" + sd.id + "/{z}/{f}/{y}/{x}.jpg");
   var geometry = new Marzipano.CubeGeometry(sd.levels);
   var limiter = Marzipano.RectilinearView.limit.traditional(sd.faceSize, 75*Math.PI/180, 120*Math.PI/180);
   var view = new Marzipano.RectilinearView(sd.initialViewParameters, limiter);
@@ -397,15 +527,13 @@ function switchScene(sceneId, yaw, pitch, fov) {
   }
   
   if (counterEl) counterEl.textContent = obj.data.position;
-  if (bgmPlaying) playBGMForCurrentScene();
-  
-  // ★ BGM処理：シーン切り替え時に新しいBGMを再生
+  // ★ BGM処理：シーン切り替え時に再生（地図ON/OFF＋長押し状態に従う）
   playSceneBGM(sceneId);
   
   showUI();
   
   // ★imageHotspots処理（bb001の和傘画像）
-  if (sceneId === "17-bb001") {
+  if (sceneId === "8-bb001") {
     window.umbrellaHotspotCreated = false;  // bb001到達時にフラグをリセット
   }
   
@@ -427,9 +555,9 @@ function switchScene(sceneId, yaw, pitch, fov) {
       // ★和傘クリックでcc001に移動
       img.addEventListener('click', function(e) {
         e.stopPropagation();
-        if (currentSceneObj.data.id === "17-bb001" && window.umbrellaHotspotCreated) {
+        if (currentSceneObj.data.id === "8-bb001" && window.umbrellaHotspotCreated) {
           console.log('🎎 和傘クリック → cc001 に移動');
-          switchScene('53-cc001');
+          switchScene('26-cc001');
         }
       });
       
@@ -457,9 +585,22 @@ function updateUI() {
   document.getElementById('arrowDown').style.visibility = isVert ? 'visible' : 'hidden';
   document.getElementById('arrowLeft').style.visibility = isVert ? 'hidden' : 'visible';
   document.getElementById('arrowRight').style.visibility = isVert ? 'hidden' : 'visible';
+
+  // ★7-aa008: aa→bb の既存「上矢印」移動を無効化（扉クリックのみ）
+  var isLookingFront = Math.abs(yawDeg) <= 90;
+  if (currentSceneObj && currentSceneObj.data.id === "7-aa008" && isLookingFront) {
+    var upEl = document.getElementById('arrowUp');
+    if (upEl) {
+      upEl.style.visibility = 'hidden';
+      upEl.style.pointerEvents = 'none';
+    }
+  } else {
+    var upEl2 = document.getElementById('arrowUp');
+    if (upEl2) upEl2.style.pointerEvents = '';
+  }
   
   // ★bb001での和傘表示（1回限り、70～110度に到達したら）
-  if (currentSceneObj.data.id === "17-bb001" && !window.umbrellaHotspotCreated) {
+  if (currentSceneObj.data.id === "8-bb001" && !window.umbrellaHotspotCreated) {
     if (yawDeg >= 70 && yawDeg <= 110) {
       window.umbrellaHotspotCreated = true;
       var umbrellaImg = document.querySelector('.image-hotspot');
@@ -488,9 +629,11 @@ setInterval(updateUI, 100);
 console.log('✅ setInterval(updateUI, 100) started');
 
 document.getElementById('volumeSlider').addEventListener('input', function(e) {
-  currentVolume = parseFloat(e.target.value);
-  if (courseBGM) courseBGM.volume = currentVolume;
-  if (sceneBGM) sceneBGM.volume = currentVolume;
+  bgmVolume = Math.max(0, Math.min(1, parseFloat(e.target.value)));
+  localStorage.setItem('bgmVolume', String(bgmVolume));
+  Object.keys(bgmAudios).forEach(function(key) {
+    if (bgmAudios[key]) bgmAudios[key].volume = bgmVolume;
+  });
 });
 
 function executeMove(isUp) {
@@ -498,7 +641,7 @@ function executeMove(isUp) {
   var isLookingFront = Math.abs(radToDeg(yaw)) <= 90;
   
   // ★aa016に到達したら自動進行を停止（修正：17→16）
-  if (currentSceneObj.data.id === "15-aa016") {
+  if (currentSceneObj.data.id === "6-aa007") {
     if (autoMoveActive) {
       console.log('⛔ aa016: 自動進行を停止します');
       stopAutoMove();
@@ -506,33 +649,20 @@ function executeMove(isUp) {
     }
   }
   
-  // ★特別ケース1：aa017 から bb001 へ（前向きに上矢印）
-  if (currentSceneObj.data.id === "16-aa017" && isUp && isLookingFront) {
-    console.log('🚀 aa017 → bb001 に移動');
-    switchScene("17-bb001", yaw, currentView.parameters().pitch, currentView.parameters().fov);
-    
-    // ★greenArrows設定は廃止（和傘クリックで代用）
-    // window.greenArrowConfig.arrows = [{ 
-    //   sceneId: '17-bb001', 
-    //   startAngle: 70, 
-    //   endAngle: 110, 
-    //   targetSceneId: '53-cc001' 
-    // }];
-    return;
-  }
+  // ★特別ケース1（無効化）：7-aa008 → bb001 は「扉クリック」でのみ移動
   
   // ★特別ケース2：bb001 から aa017 へ（戻る）
-  if (currentSceneObj.data.id === "17-bb001") {
+  if (currentSceneObj.data.id === "8-bb001") {
     var shouldReturn = (isLookingFront && !isUp) || (!isLookingFront && isUp);
     if (shouldReturn) {
       console.log('🚀 bb001 → aa017 に戻る');
-      switchScene("16-aa017", yaw, currentView.parameters().pitch, currentView.parameters().fov);
+      switchScene("7-aa008", yaw, currentView.parameters().pitch, currentView.parameters().fov);
       return;
     }
   }
   
   // ★特別ケース3：cc001は終点（戻る機能なし）
-  if (currentSceneObj.data.id === "53-cc001") {
+  if (currentSceneObj.data.id === "26-cc001") {
     console.log('🎎 cc001は終点です。移動できません。');
     return;
   }
@@ -756,13 +886,23 @@ function isRightSide(id) { return /cc|ee|gg|ii/i.test(id); }
 function isSideRoute(id) { return isLeftSide(id) || isRightSide(id); }
 function degToRad(d) { return d * Math.PI / 180; }
 function radToDeg(r) { return r * 180 / Math.PI; }
-window.goToMap = function() { location.href = './index.html'; };
+window.goToMap = function() { location.href = 'map.html'; };
 
 // ========================================
 // ★ BGM再生管理
 // ========================================
-function playSceneBGM(sceneId) {
-  if (!bgmEnabled) return;
+function shouldPlayBGM() {
+  return audioEnabled && bgmPlaying && (bgmEnabled || bgmForce);
+}
+
+function playSceneBGM(sceneId, opts) {
+  var force = !!(opts && opts.force);
+  if (!audioEnabled) return;
+  if (!force && !shouldPlayBGM()) {
+    // 地図OFFで強制再生もしていない → 全停止
+    stopAllBGM();
+    return;
+  }
   
   var sceneObj = scenesData[sceneId];
   if (!sceneObj || !sceneObj.data.bgm) {
@@ -771,15 +911,18 @@ function playSceneBGM(sceneId) {
     return;
   }
   
-  // ★修正：BGMが array形式か string形式かを判定
-  var bgmFiles = [];
+  // data.js: bgm は [{file, loop}] の配列（作品によって string/array 混在もあるため吸収）
+  var bgmItems = [];
   if (Array.isArray(sceneObj.data.bgm)) {
-    bgmFiles = sceneObj.data.bgm.map(function(item) {
-      return typeof item === 'string' ? item : item.file;
+    bgmItems = sceneObj.data.bgm.map(function(item) {
+      if (typeof item === 'string') return { file: item };
+      return item || {};
     });
   } else if (typeof sceneObj.data.bgm === 'string') {
-    bgmFiles = sceneObj.data.bgm.split(' ').filter(f => f.trim());
+    bgmItems = sceneObj.data.bgm.split(' ').map(function(s) { return s.trim(); }).filter(Boolean).map(function(f) { return { file: f }; });
   }
+
+  var bgmFiles = bgmItems.map(function(item) { return item.file; }).filter(Boolean);
   
   if (bgmFiles.length === 0) {
     stopAllBGM();
@@ -803,18 +946,34 @@ function playSceneBGM(sceneId) {
   });
   
   // 新しいBGMを再生（既に再生中でなければ）
-  bgmFiles.forEach(function(file) {
+  bgmItems.forEach(function(item) {
+    var file = item.file;
+    if (!file) return;
     if (!bgmAudios[file] || bgmAudios[file].paused) {
-      playAudio('sounds/' + file);
+      playAudio('sounds/' + file, {
+        loop: resolveLoopFlag(file, item)
+      });
+    } else {
+      // すでに鳴っている場合も loop 状態は合わせる
+      bgmAudios[file].loop = resolveLoopFlag(file, item);
+      bgmAudios[file].volume = bgmVolume;
     }
   });
 }
 
-function playAudio(filePath) {
+function resolveLoopFlag(fileName, item) {
+  var lower = String(fileName || '').toLowerCase();
+  // 優先順位: data.js の loop 指定 > ファイル名に loop > bb_loop_course.mp3 の特例
+  if (item && typeof item.loop === 'boolean') return item.loop;
+  if (lower.indexOf('loop') !== -1) return true;
+  if (lower === 'bb_loop_course.mp3') return true;
+  return false;
+}
+
+function playAudio(filePath, opts) {
   var audio = new Audio(filePath);
-  // ★ファイル名に 'loop' を含む場合のみループON（デフォルトはOFF）
-  audio.loop = (filePath.toLowerCase().indexOf('loop') !== -1);
-  audio.volume = 0;
+  audio.loop = !!(opts && opts.loop);
+  audio.volume = 0; // fade in
   
   audio.addEventListener('canplay', function() {
     fadeInAudio(audio, bgmVolume, 500);
@@ -875,12 +1034,16 @@ function stopAllBGM() {
 
 function enableBGM() {
   bgmEnabled = true;
+  localStorage.setItem('bgmEnabled', 'true');
   console.log('🎵 BGM有効化');
+  if (currentSceneObj) playSceneBGM(currentSceneObj.data.id);
 }
 
 function disableBGM() {
   bgmEnabled = false;
-  stopAllBGM();
+  localStorage.setItem('bgmEnabled', 'false');
+  // 強制再生中でなければ停止
+  if (!bgmForce) stopAllBGM();
   console.log('🔇 BGM無効化');
 }
 
@@ -891,7 +1054,7 @@ console.log('🔵 About to call switchScene with id:', urlParams.get('id') || '0
 
 switchScene(urlParams.get('id') || '0-aa01');
 
-})();
+}
 </script>
 </body>
 </html>
