@@ -73,6 +73,30 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
   pointer-events: none; transition: opacity 2s ease-out;
 }
 
+/* ===== infoHotspot テキストオーバーレイ ===== */
+#sceneText {
+  position: fixed;
+  z-index: 200;
+  display: inline-block;
+  padding: 4px 10px;
+  background: none;
+  pointer-events: none;
+  text-align: center;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  /* 多重シャドウで背景に溶け込む */
+  text-shadow:
+    0   0   2px  rgba(0,0,0,1),
+    0   0   5px  rgba(0,0,0,1),
+    0   0   10px rgba(0,0,0,0.85),
+    1px  1px 1px rgba(0,0,0,1),
+    -1px 1px 1px rgba(0,0,0,1),
+    1px -1px 1px rgba(0,0,0,1),
+    -1px -1px 1px rgba(0,0,0,1);
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+
 /* 扉演出用：部分ぼかし（中心→外側へグラデーション） */
 #blurOverlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -101,6 +125,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
 <body>
 <div id="pano"></div>
+<div id="sceneText"></div>
 <div id="fadeOverlay"></div>
 <div id="blurOverlay"></div>
 <div id="crosshair"></div>
@@ -169,6 +194,10 @@ window.TILES_BASE = 'tiles1024';
 window.greenArrowConfig = {
   arrows: []
 };
+
+// ★ infoHotspot テキスト管理
+window.shownTextScenes = {};   // 表示済みシーンID記録
+window.sceneTextTimer  = null; // フェードアウトタイマー
 
 // ★3種類の法則を実装するためのグローバル変数
 window.returnScene = null;                    // 戻り先シーン
@@ -325,6 +354,9 @@ function blurToScene(sceneId, yaw, pitch, fov, opts) {
 function triggerAaToBbDoorTransition(e) {
   if (!currentView) return;
   console.log('🚪 扉クリック → bb001 (ぼかし)');
+
+  // 扉から入る時はテキスト表示フラグをリセット（初回URLロード分を上書き）
+  window.shownTextScenes["8-bb001"] = false;
 
   var bx = null, by = null;
   var innerR = 110, outerR = 280;
@@ -515,6 +547,58 @@ function switchScene(sceneId, yaw, pitch, fov) {
   }
   
   currentScene.switchTo({ transitionDuration: 700 });
+  
+  // ===== infoHotspot テキスト表示（1シーン1回限り・7秒後フェードアウト） =====
+  var textEl = document.getElementById('sceneText');
+  // 【診断ログ】data.jsのinfoHotspotsを毎回確認
+  var _ihs = obj.data.infoHotspots;
+  console.log('📝 [infoHotspot診断] sceneId=' + sceneId
+    + ' | 件数=' + (_ihs ? _ihs.length : 0)
+    + ' | text=' + (_ihs && _ihs[0] ? _ihs[0].text : 'なし')
+    + ' | 既表示=' + !!window.shownTextScenes[sceneId]);
+  if (obj.data.infoHotspots && obj.data.infoHotspots.length > 0 && obj.data.infoHotspots[0].text) {
+    if (!window.shownTextScenes[sceneId]) {
+      // このシーンはまだ未表示 → 表示する
+      window.shownTextScenes[sceneId] = true;
+      var hs = obj.data.infoHotspots[0];
+      var hsStyle = hs.style || {};
+      textEl.textContent = hs.text;
+      textEl.style.fontSize = hsStyle.fontSize || '20px';
+      textEl.style.fontFamily = hsStyle.fontFamily || 'sans-serif';
+      textEl.style.color = hsStyle.color || '#ffffff';
+      // pitch → 画面の縦位置（bottom %）
+      var hsPitch = typeof hs.pitch === 'number' ? hs.pitch : 0.9;
+      var bottomPct = Math.round(((1.5 - hsPitch) / 3.0) * 100);
+      bottomPct = Math.max(2, Math.min(92, bottomPct));
+      textEl.style.bottom = bottomPct + '%';
+      // yaw → 画面の横位置（left %）
+      var hsYaw = typeof hs.yaw === 'number' ? hs.yaw : 0;
+      var leftPct = Math.round(((hsYaw + Math.PI) / (2 * Math.PI)) * 100);
+      leftPct = Math.max(10, Math.min(90, leftPct));
+      textEl.style.left = leftPct + '%';
+      textEl.style.transition = 'none';
+      textEl.style.opacity = '0';
+      textEl.style.display = 'inline-block';
+      textEl.getBoundingClientRect(); // 強制リフロー：opacity:0 を確定させる
+      textEl.style.transition = 'opacity 1s ease';
+      textEl.style.opacity = '1';
+      // 既存タイマーをリセット
+      if (window.sceneTextTimer) { clearTimeout(window.sceneTextTimer); }
+      // 7秒後にフェードアウト開始（6.75秒かけて消える）
+      window.sceneTextTimer = setTimeout(function() {
+        textEl.style.transition = 'opacity 6.75s ease';
+        textEl.style.opacity = '0';
+        setTimeout(function() { textEl.style.display = 'none'; }, 6750);
+      }, 7000);
+    } else {
+      // 再訪問 → 表示しない
+      if (window.sceneTextTimer) { clearTimeout(window.sceneTextTimer); }
+      textEl.style.display = 'none';
+    }
+  } else {
+    if (window.sceneTextTimer) { clearTimeout(window.sceneTextTimer); }
+    textEl.style.display = 'none';
+  }
   
   // ★ 53-cc001: 2秒後にオーバーレイをフェードアウト
   if (is53cc001) {
