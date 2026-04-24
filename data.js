@@ -1,3 +1,4 @@
+// GENERATOR_HISTORY: [{"sceneId":"8-bb001","text":"右回転（90度位）で傘が見え始めそこをクリックで移動！","fontSize":23,"fontFamily":"'Hiragino Kaku Gothic Pro','ヒラギノ角ゴ Pro W3',sans-serif","color":"#ffffff","pitch":1.4,"yaw":-1.74},{"sceneId":"7-aa008","text":"扉内のクリックで神各寺に移動！","fontSize":19,"fontFamily":"'Hiragino Kaku Gothic Pro','ヒラギノ角ゴ Pro W3',sans-serif","color":"#ffffff","pitch":0.7,"yaw":-1.04}]
 var APP_DATA = {
   "scenes": [
     {
@@ -37,7 +38,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "1-aa002",
@@ -76,7 +82,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "2-aa003",
@@ -115,7 +126,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "3-aa004",
@@ -154,7 +170,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "4-aa005",
@@ -193,7 +214,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "5-aa006",
@@ -232,7 +258,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "6-aa007",
@@ -271,7 +302,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "7-aa008",
@@ -315,8 +351,25 @@ var APP_DATA = {
           "target": "8-bb001"
         }
       ],
-      "infoHotspots": [],
-      "bgm": [{"file": "aa_course.mp3","loop": false}],
+      "infoHotspots": [
+        {
+          "yaw": 0.16,
+          "pitch": 1.4,
+          "rotation": 0,
+          "text": "扉内のクリックで神各寺に移動！",
+          "style": {
+            "fontSize": "22px",
+            "fontFamily": "'Hiragino Kaku Gothic Pro','ヒラギノ角ゴ Pro W3',sans-serif",
+            "color": "#ffffff"
+          }
+        }
+      ],
+      "bgm": [
+        {
+          "file": "aa_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "8-bb001",
@@ -360,7 +413,19 @@ var APP_DATA = {
           "target": "26-cc001"
         }
       ],
-      "infoHotspots": [],
+      "infoHotspots": [
+        {
+          "yaw": 0.16,
+          "pitch": 1.4,
+          "rotation": 0,
+          "text": "右回転（90度位）で傘が見え始めそこをクリックで移動！",
+          "style": {
+            "fontSize": "22px",
+            "fontFamily": "'Hiragino Kaku Gothic Pro','ヒラギノ角ゴ Pro W3',sans-serif",
+            "color": "#ffffff"
+          }
+        }
+      ],
       "imageHotspots": [
         {
           "src": "umbrella.png",
@@ -415,7 +480,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "10-bb003",
@@ -454,7 +524,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "11-bb004",
@@ -493,7 +568,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "12-bb005",
@@ -532,7 +612,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "13-bb006",
@@ -571,7 +656,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "14-bb007",
@@ -610,7 +700,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "15-bb008",
@@ -649,7 +744,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "16-bb009",
@@ -688,7 +788,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "17-bb010",
@@ -727,7 +832,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "18-bb011",
@@ -766,7 +876,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "19-bb012",
@@ -805,7 +920,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "20-bb013",
@@ -844,7 +964,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "21-bb014",
@@ -883,7 +1008,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "22-bb015",
@@ -922,7 +1052,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "23-bb016",
@@ -961,7 +1096,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "24-bb017",
@@ -1000,7 +1140,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "25-bb018",
@@ -1039,7 +1184,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bb_course.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bb_course.mp3",
+          "loop": false
+        }
+      ]
     },
     {
       "id": "26-cc001",
@@ -1078,7 +1228,12 @@ var APP_DATA = {
         }
       ],
       "infoHotspots": [],
-      "bgm": [{"file": "bgm53.mp3","loop": false}],
+      "bgm": [
+        {
+          "file": "bgm53.mp3",
+          "loop": false
+        }
+      ]
     }
   ],
   "name": "Project Title",
